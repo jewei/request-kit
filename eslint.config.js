@@ -16,6 +16,9 @@ export default tseslint.config(
   {
     rules: {
       'vue/multi-word-component-names': 'off',
+      // TypeScript itself checks undefined identifiers (incl. DOM globals);
+      // no-undef is redundant and wrong for TS per typescript-eslint guidance.
+      'no-undef': 'off',
     },
   },
 );
