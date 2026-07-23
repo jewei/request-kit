@@ -1,7 +1,10 @@
-mod commands;
-mod error;
-mod state;
-mod storage;
+// Modules are public so integration tests (tests/) can drive the executor
+// directly without going through Tauri commands.
+pub mod commands;
+pub mod error;
+pub mod http;
+pub mod state;
+pub mod storage;
 
 use tauri::Manager;
 
@@ -33,6 +36,10 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::app::show_main_window,
             commands::app::storage_root,
+            commands::http::send_request,
+            commands::http::cancel_request,
+            commands::http::release_response,
+            commands::http::choose_and_save_response,
         ])
         .run(tauri::generate_context!())
         .expect("error while running request-kit");
