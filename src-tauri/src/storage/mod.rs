@@ -1,4 +1,5 @@
 pub mod atomic;
+pub mod history;
 pub mod nodes;
 pub mod paths;
 pub mod quarantine;
