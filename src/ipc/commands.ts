@@ -6,6 +6,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { SendRequestPayload } from '../types/request';
 import type { HttpResponseData } from '../types/response';
+import type { RequestFile, WorkspaceBootstrap, WorkspaceNode } from '../types/workspace';
 
 /** Reveal the main window once the frontend has mounted (window starts hidden). */
 export function showMainWindow(): Promise<void> {
@@ -41,4 +42,43 @@ export function releaseResponse(executionId: string): Promise<void> {
  */
 export function chooseAndSaveResponse(executionId: string): Promise<boolean> {
   return invoke<boolean>('choose_and_save_response', { executionId });
+}
+
+// --- Storage (M2a) ---
+
+/** Scan `~/.request-kit` and return the workspace bootstrap. */
+export function loadWorkspace(): Promise<WorkspaceBootstrap> {
+  return invoke<WorkspaceBootstrap>('load_workspace');
+}
+
+export function createCollection(name: string): Promise<WorkspaceNode> {
+  return invoke<WorkspaceNode>('create_collection', { name });
+}
+
+export function createFolder(parentId: string, name: string): Promise<WorkspaceNode> {
+  return invoke<WorkspaceNode>('create_folder', { parentId, name });
+}
+
+export function createRequest(parentId: string, name: string): Promise<WorkspaceNode> {
+  return invoke<WorkspaceNode>('create_request', { parentId, name });
+}
+
+export function readRequest(id: string): Promise<RequestFile> {
+  return invoke<RequestFile>('read_request', { id });
+}
+
+export function writeRequest(id: string, document: RequestFile): Promise<void> {
+  return invoke<void>('write_request', { id, document });
+}
+
+export function renameNode(id: string, newName: string): Promise<WorkspaceNode> {
+  return invoke<WorkspaceNode>('rename_node', { id, newName });
+}
+
+export function deleteNode(id: string): Promise<void> {
+  return invoke<void>('delete_node', { id });
+}
+
+export function duplicateRequest(id: string): Promise<WorkspaceNode> {
+  return invoke<WorkspaceNode>('duplicate_request', { id });
 }
