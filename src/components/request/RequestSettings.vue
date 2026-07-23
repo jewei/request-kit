@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { APP_DEFAULTS, useTabsStore } from '../../stores/tabs';
+import { useTabsStore } from '../../stores/tabs';
+import { useSettingsStore } from '../../stores/settings';
 
 const store = useTabsStore();
+const settings = useSettingsStore();
 
 function setTimeoutMs(event: Event): void {
   const tab = store.activeTab;
@@ -30,7 +32,7 @@ function setRedirects(event: Event): void {
       <input
         type="number"
         min="1"
-        :placeholder="`inherit (${APP_DEFAULTS.timeoutMs})`"
+        :placeholder="`inherit (${settings.settings.timeoutMs})`"
         :value="store.activeTab.draft.settings.timeoutMs ?? ''"
         @input="setTimeoutMs"
       >
@@ -47,7 +49,7 @@ function setRedirects(event: Event): void {
         "
         @change="setRedirects"
       >
-        <option value="inherit">Inherit ({{ APP_DEFAULTS.followRedirects ? 'on' : 'off' }})</option>
+        <option value="inherit">Inherit ({{ settings.settings.followRedirects ? 'on' : 'off' }})</option>
         <option value="on">On</option>
         <option value="off">Off</option>
       </select>
