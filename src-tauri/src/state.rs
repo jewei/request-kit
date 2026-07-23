@@ -5,6 +5,7 @@ use tokio_util::sync::CancellationToken;
 
 use crate::http::clients::HttpClients;
 use crate::http::retain::Retention;
+use crate::storage::workspace::Workspace;
 
 /// Global application mode. Sends and storage mutations are rejected while an
 /// import is being applied or recovered (see PLAN.md, import semantics).
@@ -27,4 +28,6 @@ pub struct AppState {
     pub mode: Mutex<AppMode>,
     pub http_clients: HttpClients,
     pub retention: Retention,
+    /// Loaded on the first `load_workspace`; None until then.
+    pub workspace: Mutex<Option<Workspace>>,
 }
