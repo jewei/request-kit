@@ -5,12 +5,15 @@
  */
 import { defineStore } from 'pinia';
 import { computed, ref, toRaw } from 'vue';
-import { cancelRequest, releaseResponse, sendRequest } from '../ipc/commands';
+import { cancelRequest, releaseResponse, sendRequest, writeRequest } from '../ipc/commands';
 import { isAppError, type AppError } from '../ipc/errors';
 import type { KeyValueRow } from '../types/request';
 import type { HttpResponseData } from '../types/response';
+import type { RequestFile } from '../types/workspace';
 import { prepareRequest, type RequestDraft } from '../lib/prepare/prepareRequest';
 import { emptyRequestUrl } from '../lib/url/requestUrl';
+import { draftToRequestFile, requestFileToDraft } from '../lib/workspace/requestFile';
+import { useWorkspaceStore } from './workspace';
 
 export interface PrepareIssue {
   code: string;
@@ -21,6 +24,8 @@ export interface Tab {
   tabId: string;
   /** null = scratch tab (not yet saved). */
   requestId: string | null;
+  /** Display name; mirrors the saved request's name once saved. */
+  name: string;
   draft: RequestDraft;
   pinned: boolean;
   /** Explicit flag set on first edit — no deep diffing. */
@@ -45,6 +50,7 @@ function createScratchTab(): Tab {
   return {
     tabId: crypto.randomUUID(),
     requestId: null,
+    name: 'Untitled',
     draft: {
       method: 'GET',
       url: emptyRequestUrl(),
@@ -80,10 +86,64 @@ export const useTabsStore = defineStore('tabs', () => {
     if (tab) tab.dirty = true;
   }
 
-  /** M2 stub — real persistence arrives with the storage milestone. */
-  function save(): void {
+  /** Load a saved request document into the single active tab. */
+  function openRequest(file: RequestFile): void {
     const tab = activeTab.value;
-    if (tab) tab.dirty = false;
+    if (!tab) return;
+    if (tab.response) {
+      void releaseResponse(tab.response.executionId).catch(() => {});
+    }
+    tab.requestId = file.id;
+    tab.name = file.name;
+    tab.draft = requestFileToDraft(file);
+    tab.dirty = false;
+    tab.response = null;
+    tab.responseError = null;
+    tab.inFlightExecutionId = null;
+    prepareErrors.value = [];
+    prepareWarnings.value = [];
+  }
+
+  /**
+   * Persist the active tab. A scratch tab is first materialized as a real
+   * request under the first collection (creating one if the workspace is
+   * empty), so `mod+S` always has somewhere to save.
+   */
+  async function save(): Promise<void> {
+    const tab = activeTab.value;
+    if (!tab) return;
+
+    if (!tab.requestId) {
+      const workspace = useWorkspaceStore();
+      let parentId = workspace.tree.find((node) => node.kind === 'collection')?.id;
+      if (!parentId) {
+        parentId = (await workspace.createCollection('My Requests')).id;
+      }
+      const node = await workspace.createRequest(parentId, tab.name || 'Untitled Request');
+      tab.requestId = node.id;
+      tab.name = node.name;
+    }
+
+    const document = draftToRequestFile(tab.requestId, tab.name, toRaw(tab.draft));
+    await writeRequest(tab.requestId, document);
+    tab.dirty = false;
+  }
+
+  /**
+   * When a saved request is deleted elsewhere, any tab showing it becomes an
+   * unsaved scratch tab (edits are never silently lost) and its retained
+   * response bytes are released.
+   */
+  function onNodeDeleted(id: string): void {
+    const tab = activeTab.value;
+    if (!tab || tab.requestId !== id) return;
+    if (tab.response) {
+      void releaseResponse(tab.response.executionId).catch(() => {});
+    }
+    tab.requestId = null;
+    tab.response = null;
+    tab.responseError = null;
+    tab.dirty = true;
   }
 
   async function sendActiveTab(): Promise<void> {
@@ -161,6 +221,8 @@ export const useTabsStore = defineStore('tabs', () => {
     isInFlight,
     markDirty,
     save,
+    openRequest,
+    onNodeDeleted,
     sendActiveTab,
     cancelActiveTab,
   };

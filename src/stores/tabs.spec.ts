@@ -1,7 +1,9 @@
 import { createPinia, setActivePinia } from 'pinia';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { HttpResponseData } from '../types/response';
+import type { RequestFile, WorkspaceBootstrap, WorkspaceNode } from '../types/workspace';
 import { useTabsStore } from './tabs';
+import { useWorkspaceStore } from './workspace';
 import * as commands from '../ipc/commands';
 
 vi.mock('../ipc/commands', () => ({
@@ -9,6 +11,14 @@ vi.mock('../ipc/commands', () => ({
   cancelRequest: vi.fn().mockResolvedValue(undefined),
   releaseResponse: vi.fn().mockResolvedValue(undefined),
   chooseAndSaveResponse: vi.fn(),
+  writeRequest: vi.fn().mockResolvedValue(undefined),
+  createCollection: vi.fn(),
+  createRequest: vi.fn(),
+  createFolder: vi.fn(),
+  renameNode: vi.fn(),
+  deleteNode: vi.fn(),
+  duplicateRequest: vi.fn(),
+  loadWorkspace: vi.fn(),
 }));
 
 interface Deferred<T> {
@@ -105,5 +115,91 @@ describe('tabs store send/cancel state machine', () => {
     await second;
     expect(store.activeTab!.response).toStrictEqual(newerResponse);
     expect(store.isInFlight).toBe(false);
+  });
+});
+
+function requestFile(id: string, name: string): RequestFile {
+  return {
+    version: 1,
+    id,
+    name,
+    method: 'POST',
+    url: { base: 'https://example.com', query: [], fragment: '' },
+    headers: [],
+    body: { mode: 'none' },
+    auth: { type: 'inherit' },
+    variables: [],
+    settings: { timeoutMs: null, followRedirects: null },
+  };
+}
+
+function bootstrap(tree: WorkspaceNode[]): WorkspaceBootstrap {
+  return { tree, environments: [], globals: [], settings: {}, uiState: {}, quarantined: [] };
+}
+
+describe('tabs store save / open / delete', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    vi.clearAllMocks();
+    vi.mocked(commands.releaseResponse).mockResolvedValue(undefined);
+    vi.mocked(commands.writeRequest).mockResolvedValue(undefined);
+  });
+
+  it('openRequest loads the document into the active tab and clears dirty', () => {
+    const store = useTabsStore();
+    store.activeTab!.dirty = true;
+    store.openRequest(requestFile('r1', 'Ping'));
+
+    expect(store.activeTab!.requestId).toBe('r1');
+    expect(store.activeTab!.name).toBe('Ping');
+    expect(store.activeTab!.draft.method).toBe('POST');
+    expect(store.activeTab!.draft.url.base).toBe('https://example.com');
+    expect(store.activeTab!.dirty).toBe(false);
+  });
+
+  it('saving a scratch tab creates the request under a collection then writes it', async () => {
+    const collection: WorkspaceNode = { id: 'c1', kind: 'collection', name: 'API', children: [] };
+    vi.mocked(commands.loadWorkspace).mockResolvedValue(bootstrap([collection]));
+    vi.mocked(commands.createRequest).mockResolvedValue({
+      id: 'r-new',
+      kind: 'request',
+      name: 'Untitled Request',
+    });
+
+    // Populate the workspace store with one collection.
+    const workspace = useWorkspaceStore();
+    await workspace.load();
+
+    const store = useTabsStore();
+    store.markDirty();
+    await store.save();
+
+    expect(commands.createRequest).toHaveBeenCalledWith('c1', 'Untitled');
+    expect(commands.writeRequest).toHaveBeenCalledOnce();
+    expect(store.activeTab!.requestId).toBe('r-new');
+    expect(store.activeTab!.dirty).toBe(false);
+  });
+
+  it('saving an already-saved tab writes without creating a node', async () => {
+    const store = useTabsStore();
+    store.openRequest(requestFile('r1', 'Ping'));
+    store.markDirty();
+    await store.save();
+
+    expect(commands.createRequest).not.toHaveBeenCalled();
+    expect(commands.writeRequest).toHaveBeenCalledWith('r1', expect.objectContaining({ id: 'r1' }));
+    expect(store.activeTab!.dirty).toBe(false);
+  });
+
+  it('onNodeDeleted converts an open request into a scratch tab and releases its response', () => {
+    const store = useTabsStore();
+    store.openRequest(requestFile('r1', 'Ping'));
+    store.activeTab!.response = makeResponse('exec-1');
+
+    store.onNodeDeleted('r1');
+
+    expect(store.activeTab!.requestId).toBeNull();
+    expect(store.activeTab!.response).toBeNull();
+    expect(commands.releaseResponse).toHaveBeenCalledWith('exec-1');
   });
 });
