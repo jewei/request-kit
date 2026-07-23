@@ -49,6 +49,11 @@ pub fn run() {
             commands::storage::rename_node,
             commands::storage::delete_node,
             commands::storage::duplicate_request,
+            commands::storage::read_settings,
+            commands::storage::write_settings,
+            commands::storage::read_history,
+            commands::storage::append_history,
+            commands::storage::clear_history,
         ])
         .run(tauri::generate_context!())
         .expect("error while running request-kit");

@@ -17,6 +17,7 @@ use crate::storage::nodes::WorkspaceNode;
 use crate::storage::paths::ensure_storage_root;
 use crate::storage::quarantine::QuarantineReport;
 use crate::storage::workspace::Workspace;
+use crate::storage::{history, settings};
 
 /// One bootstrap payload (design spec: M2a fills only `tree`/`quarantined`;
 /// environments/globals/settings/uiState are M2b and return defaults).
@@ -29,18 +30,6 @@ pub struct WorkspaceBootstrap {
     pub settings: Value,
     pub ui_state: Value,
     pub quarantined: Vec<QuarantineReport>,
-}
-
-fn default_settings() -> Value {
-    json!({
-        "version": 1,
-        "theme": "system",
-        "fontSize": 13,
-        "timeoutMs": 30000,
-        "followRedirects": true,
-        "maxBodyBytes": 10_485_760,
-        "editorLargeFileKb": 1024
-    })
 }
 
 fn default_ui_state() -> Value {
@@ -88,6 +77,7 @@ pub fn load_workspace_impl(
     state: &AppState,
     root: PathBuf,
 ) -> Result<WorkspaceBootstrap, AppError> {
+    let settings_value = settings::read_settings(&root);
     let (ws, quarantined) = Workspace::load(root);
     let tree = ws.tree();
     *state
@@ -98,10 +88,43 @@ pub fn load_workspace_impl(
         tree,
         environments: vec![],
         globals: vec![],
-        settings: default_settings(),
+        settings: settings_value,
         ui_state: default_ui_state(),
         quarantined,
     })
+}
+
+// --- settings + history (stateless disk ops; writes respect the guard) ---
+
+pub fn read_settings_impl(root: &std::path::Path) -> Value {
+    settings::read_settings(root)
+}
+
+pub fn write_settings_impl(
+    state: &AppState,
+    root: &std::path::Path,
+    value: &Value,
+) -> Result<(), AppError> {
+    ensure_normal(state)?;
+    settings::write_settings(root, value)
+}
+
+pub fn read_history_impl(root: &std::path::Path, limit: usize) -> Vec<Value> {
+    history::read_history(root, limit)
+}
+
+pub fn append_history_impl(
+    state: &AppState,
+    root: &std::path::Path,
+    entry: &Value,
+) -> Result<(), AppError> {
+    ensure_normal(state)?;
+    history::append_history(root, entry)
+}
+
+pub fn clear_history_impl(state: &AppState, root: &std::path::Path) -> Result<(), AppError> {
+    ensure_normal(state)?;
+    history::clear_history(root)
 }
 
 pub fn create_collection_impl(state: &AppState, name: &str) -> Result<WorkspaceNode, AppError> {
@@ -222,4 +245,29 @@ pub fn duplicate_request(
     state: State<'_, AppState>,
 ) -> Result<WorkspaceNode, AppError> {
     duplicate_request_impl(state.inner(), &id)
+}
+
+#[tauri::command]
+pub fn read_settings() -> Result<Value, AppError> {
+    Ok(read_settings_impl(&ensure_storage_root()?))
+}
+
+#[tauri::command]
+pub fn write_settings(settings: Value, state: State<'_, AppState>) -> Result<(), AppError> {
+    write_settings_impl(state.inner(), &ensure_storage_root()?, &settings)
+}
+
+#[tauri::command]
+pub fn read_history(limit: usize) -> Result<Vec<Value>, AppError> {
+    Ok(read_history_impl(&ensure_storage_root()?, limit))
+}
+
+#[tauri::command]
+pub fn append_history(entry: Value, state: State<'_, AppState>) -> Result<(), AppError> {
+    append_history_impl(state.inner(), &ensure_storage_root()?, &entry)
+}
+
+#[tauri::command]
+pub fn clear_history(state: State<'_, AppState>) -> Result<(), AppError> {
+    clear_history_impl(state.inner(), &ensure_storage_root()?)
 }
