@@ -16,9 +16,34 @@ first: `bun run fixtures` (http://localhost:4400).
 - [ ] CI builds installers on macos-latest and windows-latest
 - [ ] Unsigned installers launch manually on both target systems
 
-## M1 — Send one request (placeholder — expand when M1 lands)
+## M1 — Send one request
 
-- [ ] GET `http://localhost:4400/json` renders status, duration, size, pretty JSON
-- [ ] Cancel works mid-flight on `/delay/10`
-- [ ] `https://nope.invalid` shows a DNS-specific message
-- [ ] `/close` shows a connection error, not a crash
+Fixture base: `http://localhost:4400` (`bun run fixtures`).
+
+- [ ] GET `/json` → 2xx green badge, duration, decoded size, pretty-printed JSON in
+      the Pretty view; Raw view shows the verbatim body; Headers view lists the
+      normalized headers
+- [ ] GET `/delay/10`, then **Cancel** mid-flight → request stops, response panel
+      shows a muted "Request cancelled." (not an error), no lingering spinner
+- [ ] GET `/redirect/3` → follows the chain (redirects toggle on) to a 2xx; final
+      URL in the meta bar reflects the last hop
+- [ ] Toggle **Follow redirects → Off** in Settings, resend `/redirect/3` → a 3xx
+      response is shown (not followed)
+- [ ] GET `/gzip` → body is decoded and rendered (no raw gzip bytes); size is the
+      decoded size
+- [ ] GET `/dup-headers` → the duplicated header name appears twice in Headers view
+- [ ] GET `/size/5000` → "truncated" flag in the meta bar + **Save to file…**
+      writes the full body via the Rust save dialog; cancelling the dialog is silent
+- [ ] GET `/binary` → binary notice + **Save to file…** (no garbled text render)
+- [ ] GET `/close` → connection error headline, app does not crash
+- [ ] GET `https://nope.invalid` → DNS-specific message ("Could not resolve the
+      host…"); collapsed Details carries the redacted chain
+- [ ] Malformed URL (e.g. `ht!tp://x`) → validation error shown, no send attempted
+- [ ] POST `/echo` with a JSON body and no Content-Type → `application/json` sent;
+      a syntactically bad JSON body shows the lint position on **Format**
+- [ ] **Stale-completion guard:** start `/delay/10`, then immediately send `/json`
+      in the same tab → only the `/json` result renders; the slow `/delay/10`
+      completion neither clobbers the display nor lingers in retention
+- [ ] `mod+Enter` sends the active request; the Send button flips to Cancel while
+      in flight
+- [ ] Copy body copies the displayed text to the clipboard

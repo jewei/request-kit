@@ -4,7 +4,7 @@
  * multi-tab work only adds UI + persistence.
  */
 import { defineStore } from 'pinia';
-import { computed, ref } from 'vue';
+import { computed, ref, toRaw } from 'vue';
 import { cancelRequest, releaseResponse, sendRequest } from '../ipc/commands';
 import { isAppError, type AppError } from '../ipc/errors';
 import type { KeyValueRow } from '../types/request';
@@ -90,8 +90,11 @@ export const useTabsStore = defineStore('tabs', () => {
     const tab = activeTab.value;
     if (!tab) return;
 
+    // Hand the pipeline the raw draft: prepareRequest deep-clones internally,
+    // and cloning through Vue's reactive proxy is both wasteful and unsupported
+    // by some structuredClone implementations.
     const result = prepareRequest(
-      tab.draft,
+      toRaw(tab.draft),
       {
         variableSources: { environment: [], globals: [] },
         appDefaults: APP_DEFAULTS,
