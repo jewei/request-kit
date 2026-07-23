@@ -12,6 +12,27 @@ pub fn storage_root() -> Result<PathBuf, AppError> {
     Ok(home.join(".request-kit"))
 }
 
+/// The `collections/` subtree under a storage root.
+pub fn collections_dir(root: &std::path::Path) -> PathBuf {
+    root.join("collections")
+}
+
+/// Creates a directory (and mode 0700 on Unix) if it does not exist.
+pub fn ensure_dir(dir: &std::path::Path) -> Result<(), AppError> {
+    if !dir.exists() {
+        std::fs::create_dir_all(dir)
+            .map_err(|e| AppError::io(format!("could not create directory: {e}")))?;
+        #[cfg(unix)]
+        {
+            use std::fs::Permissions;
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(dir, Permissions::from_mode(0o700))
+                .map_err(|e| AppError::io(format!("could not set directory permissions: {e}")))?;
+        }
+    }
+    Ok(())
+}
+
 /// Creates the storage root (and mode 0700 on Unix) if it does not exist.
 pub fn ensure_storage_root() -> Result<PathBuf, AppError> {
     let root = storage_root()?;
