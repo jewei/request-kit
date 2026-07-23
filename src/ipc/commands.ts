@@ -7,6 +7,8 @@ import { invoke } from '@tauri-apps/api/core';
 import type { SendRequestPayload } from '../types/request';
 import type { HttpResponseData } from '../types/response';
 import type { RequestFile, WorkspaceBootstrap, WorkspaceNode } from '../types/workspace';
+import type { Settings } from '../types/settings';
+import type { HistoryEntry } from '../types/history';
 
 /** Reveal the main window once the frontend has mounted (window starts hidden). */
 export function showMainWindow(): Promise<void> {
@@ -81,4 +83,26 @@ export function deleteNode(id: string): Promise<void> {
 
 export function duplicateRequest(id: string): Promise<WorkspaceNode> {
   return invoke<WorkspaceNode>('duplicate_request', { id });
+}
+
+// --- Settings + history (M2b) ---
+
+export function readSettings(): Promise<Settings> {
+  return invoke<Settings>('read_settings');
+}
+
+export function writeSettings(settings: Settings): Promise<void> {
+  return invoke<void>('write_settings', { settings });
+}
+
+export function readHistory(limit: number): Promise<HistoryEntry[]> {
+  return invoke<HistoryEntry[]>('read_history', { limit });
+}
+
+export function appendHistory(entry: HistoryEntry): Promise<void> {
+  return invoke<void>('append_history', { entry });
+}
+
+export function clearHistory(): Promise<void> {
+  return invoke<void>('clear_history');
 }
