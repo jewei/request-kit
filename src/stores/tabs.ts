@@ -13,7 +13,10 @@ import type { RequestFile } from '../types/workspace';
 import { prepareRequest, type RequestDraft } from '../lib/prepare/prepareRequest';
 import { emptyRequestUrl } from '../lib/url/requestUrl';
 import { draftToRequestFile, requestFileToDraft } from '../lib/workspace/requestFile';
+import { buildHistoryEntry, type HistoryResult } from '../lib/history/redact';
 import { useWorkspaceStore } from './workspace';
+import { useSettingsStore } from './settings';
+import { useHistoryStore } from './history';
 
 export interface PrepareIssue {
   code: string;
@@ -153,11 +156,16 @@ export const useTabsStore = defineStore('tabs', () => {
     // Hand the pipeline the raw draft: prepareRequest deep-clones internally,
     // and cloning through Vue's reactive proxy is both wasteful and unsupported
     // by some structuredClone implementations.
+    const settings = useSettingsStore();
     const result = prepareRequest(
       toRaw(tab.draft),
       {
         variableSources: { environment: [], globals: [] },
-        appDefaults: APP_DEFAULTS,
+        appDefaults: {
+          timeoutMs: settings.settings.timeoutMs,
+          followRedirects: settings.settings.followRedirects,
+          maxBodyBytes: settings.settings.maxBodyBytes,
+        },
       },
       { variableMode: 'resolve', sensitiveValueMode: 'include', unresolvedMode: 'error' },
     );
@@ -192,16 +200,41 @@ export const useTabsStore = defineStore('tabs', () => {
       tab.response = response;
       tab.responseError = null;
       tab.inFlightExecutionId = null;
+      recordHistory(tab, {
+        status: response.status,
+        durationMs: response.durationMs,
+        bodyBytes: response.bodyBytes,
+      });
     } catch (error) {
       if (tab.inFlightExecutionId !== executionId) {
         void releaseResponse(executionId).catch(() => {});
         return;
       }
-      tab.responseError = isAppError(error)
+      const appError = isAppError(error)
         ? error
-        : { kind: 'unknown', message: error instanceof Error ? error.message : String(error) };
+        : { kind: 'unknown' as const, message: error instanceof Error ? error.message : String(error) };
+      tab.responseError = appError;
       tab.inFlightExecutionId = null;
+      // Cancellation retains nothing and is not history-worthy.
+      if (appError.kind !== 'cancelled') {
+        recordHistory(tab, { errorKind: appError.kind });
+      }
     }
+  }
+
+  /** Append a redacted, template-first entry for an accepted completion. */
+  function recordHistory(tab: Tab, result: HistoryResult): void {
+    useHistoryStore().record(
+      buildHistoryEntry(
+        {
+          method: tab.draft.method,
+          url: toRaw(tab.draft.url),
+          requestId: tab.requestId,
+          result,
+        },
+        { id: crypto.randomUUID(), executedAt: new Date().toISOString() },
+      ),
+    );
   }
 
   /** Fire-and-forget; the pending send promise settles with kind 'cancelled'. */

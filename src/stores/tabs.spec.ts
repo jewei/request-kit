@@ -4,6 +4,9 @@ import type { HttpResponseData } from '../types/response';
 import type { RequestFile, WorkspaceBootstrap, WorkspaceNode } from '../types/workspace';
 import { useTabsStore } from './tabs';
 import { useWorkspaceStore } from './workspace';
+import { useSettingsStore } from './settings';
+import { useHistoryStore } from './history';
+import type { QueryParam } from '../types/request';
 import * as commands from '../ipc/commands';
 
 vi.mock('../ipc/commands', () => ({
@@ -19,6 +22,11 @@ vi.mock('../ipc/commands', () => ({
   deleteNode: vi.fn(),
   duplicateRequest: vi.fn(),
   loadWorkspace: vi.fn(),
+  appendHistory: vi.fn().mockResolvedValue(undefined),
+  readHistory: vi.fn().mockResolvedValue([]),
+  clearHistory: vi.fn().mockResolvedValue(undefined),
+  readSettings: vi.fn(),
+  writeSettings: vi.fn().mockResolvedValue(undefined),
 }));
 
 interface Deferred<T> {
@@ -201,5 +209,74 @@ describe('tabs store save / open / delete', () => {
     expect(store.activeTab!.requestId).toBeNull();
     expect(store.activeTab!.response).toBeNull();
     expect(commands.releaseResponse).toHaveBeenCalledWith('exec-1');
+  });
+});
+
+function secretRow(): QueryParam {
+  return { id: 'q1', key: 'token', value: 'secret', enabled: true, hasEquals: true };
+}
+
+describe('tabs store history + settings', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    vi.clearAllMocks();
+    vi.mocked(commands.releaseResponse).mockResolvedValue(undefined);
+    vi.mocked(commands.appendHistory).mockResolvedValue(undefined);
+  });
+
+  it('records one redacted history entry on a successful send', async () => {
+    const d = deferred<HttpResponseData>();
+    vi.mocked(commands.sendRequest).mockReturnValueOnce(d.promise);
+
+    const history = useHistoryStore();
+    const store = useTabsStore();
+    setValidUrl(store);
+    store.activeTab!.draft.url.query.push(secretRow());
+
+    const pending = store.sendActiveTab();
+    d.resolve(makeResponse('e1'));
+    await pending;
+
+    expect(history.entries).toHaveLength(1);
+    expect(history.entries[0].templateUrl).toContain('token=<redacted>');
+    expect(history.entries[0].status).toBe(200);
+    expect(commands.appendHistory).toHaveBeenCalledOnce();
+  });
+
+  it('records an error entry but nothing on cancel', async () => {
+    const store = useTabsStore();
+    setValidUrl(store);
+    const history = useHistoryStore();
+
+    const d1 = deferred<HttpResponseData>();
+    vi.mocked(commands.sendRequest).mockReturnValueOnce(d1.promise);
+    const p1 = store.sendActiveTab();
+    d1.reject({ kind: 'dns', message: 'no host' });
+    await p1;
+    expect(history.entries).toHaveLength(1);
+    expect(history.entries[0].errorKind).toBe('dns');
+
+    const d2 = deferred<HttpResponseData>();
+    vi.mocked(commands.sendRequest).mockReturnValueOnce(d2.promise);
+    const p2 = store.sendActiveTab();
+    d2.reject({ kind: 'cancelled', message: 'cancelled' });
+    await p2;
+    expect(history.entries).toHaveLength(1); // cancel recorded nothing
+  });
+
+  it('flows the settings timeout into the send payload', async () => {
+    const settings = useSettingsStore();
+    settings.load({ timeoutMs: 1234 });
+
+    const d = deferred<HttpResponseData>();
+    vi.mocked(commands.sendRequest).mockReturnValueOnce(d.promise);
+    const store = useTabsStore();
+    setValidUrl(store);
+
+    const pending = store.sendActiveTab();
+    d.resolve(makeResponse('e1'));
+    await pending;
+
+    expect(commands.sendRequest).toHaveBeenCalledWith(expect.objectContaining({ timeoutMs: 1234 }));
   });
 });
