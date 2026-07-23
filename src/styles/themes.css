@@ -1,0 +1,15 @@
+:root {
+  --rk-bg: #ffffff;
+  --rk-fg: #1a1a1a;
+  --rk-accent: #2563eb;
+  --rk-border: #d4d4d8;
+  --rk-muted: #71717a;
+}
+
+[data-theme='dark'] {
+  --rk-bg: #18181b;
+  --rk-fg: #e4e4e7;
+  --rk-accent: #3b82f6;
+  --rk-border: #3f3f46;
+  --rk-muted: #a1a1aa;
+}

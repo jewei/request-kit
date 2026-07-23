@@ -1,0 +1,43 @@
+[package]
+name = "request-kit"
+version = "0.1.0"
+description = "A local-first desktop API client"
+authors = ["oneone.tech"]
+edition = "2021"
+rust-version = "1.85"
+
+[lib]
+name = "request_kit_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-single-instance = "2"
+tauri-plugin-window-state = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-clipboard-manager = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+uuid = { version = "1", features = ["v4", "serde"] }
+dirs = "5"
+chrono = { version = "0.4", features = ["serde"] }
+tempfile = "3"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "fs", "io-util", "time"] }
+tokio-util = "0.7"
+reqwest = { version = "0.13", default-features = false, features = [
+  "rustls",
+  "http2",
+  "stream",
+  "gzip",
+  "brotli",
+  "deflate",
+] }
+
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1

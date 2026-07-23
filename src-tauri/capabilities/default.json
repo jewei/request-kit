@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Minimal webview capability set (PLAN.md security boundaries): core defaults for invoke/events plus clipboard text writing. Dialogs are opened Rust-side only — no dialog permissions. No opener in v0.1.",
+  "windows": ["main"],
+  "permissions": ["core:default", "clipboard-manager:allow-write-text"]
+}

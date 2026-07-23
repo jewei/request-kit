@@ -1,0 +1,4 @@
+[toolchain]
+# reqwest 0.13 floor is 1.85; pinned to the stable current at scaffold time.
+channel = "1.97"
+components = ["rustfmt", "clippy"]
