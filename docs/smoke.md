@@ -69,3 +69,26 @@ Exercises `~/.request-kit` persistence. No fixture server needed.
       collection dir → relaunch → app still starts, both are quarantined
       (`.corrupt-<ts>`), and the sidebar shows the "files could not be loaded"
       notice; the duplicate winner is the lexicographically-first path
+
+## M2b — History, search, settings, themes, window-state
+
+Fixture server (`bun run fixtures`) helps for the history/redaction checks.
+
+- [ ] Send `GET /json?token=secret` → the **History** tab lists the request as
+      `?token=<redacted>` (template only); no `Authorization`/secret text appears
+- [ ] History shows method + status (or error kind) + relative time, newest first
+- [ ] Click a history row for a saved request → it reopens that request; click a
+      row for an unsaved request → a scratch tab is prefilled from the template URL
+- [ ] **Clear** (confirm) empties the history list and `history/history.jsonl`
+- [ ] Open **Settings** (gear or `mod+,`) → change theme to Dark → UI updates
+      immediately; relaunch → theme persists
+- [ ] Change theme to System → matches the OS appearance and follows OS changes
+- [ ] Change **Default timeout** in Settings → a new request without a per-request
+      timeout uses it (e.g. set 500 ms, hit `/delay/2` → times out)
+- [ ] Change **Font size** → editors/UI reflow; persists across relaunch
+- [ ] Search box filters the collections tree by name (containers on the path
+      are kept; a matching collection shows its whole subtree)
+- [ ] Move the window / resize, quit, relaunch → geometry restored; drag mostly
+      off-screen, relaunch → clamped back on-screen
+- [ ] Hand-corrupt `settings.json` → relaunch → app starts with default settings
+      and the file is quarantined (`.corrupt-<ts>`)
