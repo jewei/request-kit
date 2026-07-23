@@ -12,9 +12,7 @@ use uuid::Uuid;
 
 use crate::error::{AppError, ErrorKind};
 use crate::storage::atomic::write_json_atomic;
-use crate::storage::nodes::{
-    collection_meta, default_request_file, folder_meta, WorkspaceNode,
-};
+use crate::storage::nodes::{collection_meta, default_request_file, folder_meta, WorkspaceNode};
 use crate::storage::paths::{collections_dir, ensure_dir};
 use crate::storage::quarantine::{quarantine, QuarantineReport};
 use crate::storage::scan::{scan, COLLECTION_META, FOLDER_META};
@@ -79,7 +77,10 @@ impl Workspace {
             .map_err(|e| AppError::io(format!("could not read request: {e}")))?;
         serde_json::from_slice(&bytes).map_err(|e| {
             quarantine(path, format!("invalid JSON: {e}"));
-            AppError::new(ErrorKind::Io, "the request file was corrupt and has been quarantined")
+            AppError::new(
+                ErrorKind::Io,
+                "the request file was corrupt and has been quarantined",
+            )
         })
     }
 }
@@ -99,7 +100,11 @@ impl Workspace {
         self.node_or_err(&id)
     }
 
-    pub fn create_folder(&mut self, parent_id: &str, name: &str) -> Result<WorkspaceNode, AppError> {
+    pub fn create_folder(
+        &mut self,
+        parent_id: &str,
+        name: &str,
+    ) -> Result<WorkspaceNode, AppError> {
         let parent = self.container_dir(parent_id)?;
         let slug = unique_slug(&slugify(name), &|s| parent.join(s).exists());
         let dir = parent.join(&slug);
@@ -110,9 +115,15 @@ impl Workspace {
         self.node_or_err(&id)
     }
 
-    pub fn create_request(&mut self, parent_id: &str, name: &str) -> Result<WorkspaceNode, AppError> {
+    pub fn create_request(
+        &mut self,
+        parent_id: &str,
+        name: &str,
+    ) -> Result<WorkspaceNode, AppError> {
         let parent = self.container_dir(parent_id)?;
-        let slug = unique_slug(&slugify(name), &|s| parent.join(format!("{s}.json")).exists());
+        let slug = unique_slug(&slugify(name), &|s| {
+            parent.join(format!("{s}.json")).exists()
+        });
         let path = parent.join(format!("{slug}.json"));
         let id = Uuid::new_v4().to_string();
         write_json_atomic(&path, &default_request_file(&id, name))?;
@@ -210,9 +221,15 @@ impl Workspace {
     }
 
     fn rename_container(&self, old_dir: &Path, new_name: &str) -> Result<(), AppError> {
-        let parent = old_dir.parent().ok_or_else(|| AppError::io("no parent dir"))?;
+        let parent = old_dir
+            .parent()
+            .ok_or_else(|| AppError::io("no parent dir"))?;
         let is_collection = parent == collections_dir(&self.root);
-        let meta_name = if is_collection { COLLECTION_META } else { FOLDER_META };
+        let meta_name = if is_collection {
+            COLLECTION_META
+        } else {
+            FOLDER_META
+        };
         let meta_path = old_dir.join(meta_name);
         let mut meta = read_doc(&meta_path)?;
         meta["name"] = json!(new_name);
@@ -239,7 +256,9 @@ impl Workspace {
 }
 
 fn rename_request(old_path: &Path, new_name: &str) -> Result<(), AppError> {
-    let parent = old_path.parent().ok_or_else(|| AppError::io("no parent dir"))?;
+    let parent = old_path
+        .parent()
+        .ok_or_else(|| AppError::io("no parent dir"))?;
     let old_name = file_name(old_path);
     let mut doc = read_doc(old_path)?;
     doc["name"] = json!(new_name);

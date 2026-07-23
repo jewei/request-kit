@@ -98,7 +98,10 @@ mod tests {
 
     #[test]
     fn node_kind_serializes_camel() {
-        assert_eq!(serde_json::to_value(NodeKind::Collection).unwrap(), "collection");
+        assert_eq!(
+            serde_json::to_value(NodeKind::Collection).unwrap(),
+            "collection"
+        );
         assert_eq!(serde_json::to_value(NodeKind::Folder).unwrap(), "folder");
         assert_eq!(serde_json::to_value(NodeKind::Request).unwrap(), "request");
     }

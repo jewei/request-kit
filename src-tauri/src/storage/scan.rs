@@ -46,9 +46,7 @@ pub fn scan(collections_dir: &Path) -> ScanResult {
         if paths.len() > 1 {
             paths.sort_by_key(|p| norm_rel(p, collections_dir));
             for loser in paths.iter().skip(1) {
-                result
-                    .quarantined
-                    .push(quarantine(loser, "duplicate UUID"));
+                result.quarantined.push(quarantine(loser, "duplicate UUID"));
             }
         }
     }
@@ -56,7 +54,8 @@ pub fn scan(collections_dir: &Path) -> ScanResult {
     // Pass 2: quarantined files are gone from disk now, so a fresh walk sees
     // only winners. Build the tree + index.
     for entry in sorted_dirs(collections_dir) {
-        if let Some(node) = build_container(&entry, true, &mut result.index, &mut result.quarantined)
+        if let Some(node) =
+            build_container(&entry, true, &mut result.index, &mut result.quarantined)
         {
             result.tree.push(node);
         }
@@ -95,7 +94,11 @@ fn build_container(
     if !dir.is_dir() {
         return None;
     }
-    let meta_name = if is_collection { COLLECTION_META } else { FOLDER_META };
+    let meta_name = if is_collection {
+        COLLECTION_META
+    } else {
+        FOLDER_META
+    };
     let meta_path = dir.join(meta_name);
     let header = match parse_header(&meta_path) {
         Ok(h) => h,
@@ -135,7 +138,11 @@ fn build_container(
     index.insert(header.id.clone(), dir.to_path_buf());
     Some(WorkspaceNode {
         id: header.id,
-        kind: if is_collection { NodeKind::Collection } else { NodeKind::Folder },
+        kind: if is_collection {
+            NodeKind::Collection
+        } else {
+            NodeKind::Folder
+        },
         name: header.name,
         children: Some(children),
     })
@@ -203,7 +210,10 @@ mod tests {
         let col = root.path().join("my-col");
         write(&col.join(COLLECTION_META), &collection_meta("c1", "My Col"));
         write(&col.join("zeta.json"), &default_request_file("r2", "Zeta"));
-        write(&col.join("alpha.json"), &default_request_file("r1", "Alpha"));
+        write(
+            &col.join("alpha.json"),
+            &default_request_file("r1", "Alpha"),
+        );
 
         let result = scan(root.path());
         assert_eq!(result.tree.len(), 1);

@@ -40,6 +40,15 @@ pub fn run() {
             commands::http::cancel_request,
             commands::http::release_response,
             commands::http::choose_and_save_response,
+            commands::storage::load_workspace,
+            commands::storage::create_collection,
+            commands::storage::create_folder,
+            commands::storage::create_request,
+            commands::storage::read_request,
+            commands::storage::write_request,
+            commands::storage::rename_node,
+            commands::storage::delete_node,
+            commands::storage::duplicate_request,
         ])
         .run(tauri::generate_context!())
         .expect("error while running request-kit");
