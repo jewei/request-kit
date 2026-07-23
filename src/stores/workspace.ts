@@ -27,6 +27,24 @@ function findNode(nodes: WorkspaceNode[], id: string): WorkspaceNode | null {
   return null;
 }
 
+/** Keep requests whose name matches; a matching container keeps its whole
+ *  subtree, and a non-matching container is kept only if a descendant matches. */
+function filterNodes(nodes: WorkspaceNode[], query: string): WorkspaceNode[] {
+  const out: WorkspaceNode[] = [];
+  for (const node of nodes) {
+    const selfMatch = node.name.toLowerCase().includes(query);
+    if (node.kind === 'request') {
+      if (selfMatch) out.push(node);
+    } else if (selfMatch) {
+      out.push(node);
+    } else {
+      const children = filterNodes(node.children ?? [], query);
+      if (children.length) out.push({ ...node, children });
+    }
+  }
+  return out;
+}
+
 export const useWorkspaceStore = defineStore('workspace', () => {
   const tree = ref<WorkspaceNode[]>([]);
   const quarantined = ref<QuarantineReport[]>([]);
@@ -39,6 +57,13 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 
   function nodeById(id: string): WorkspaceNode | null {
     return findNode(tree.value, id);
+  }
+
+  /** The tree filtered by a name query (case-insensitive); empty query = full tree. */
+  function filteredTree(query: string): WorkspaceNode[] {
+    const q = query.trim().toLowerCase();
+    if (!q) return tree.value;
+    return filterNodes(tree.value, q);
   }
 
   async function createCollection(name: string): Promise<WorkspaceNode> {
@@ -80,6 +105,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     quarantined,
     load,
     nodeById,
+    filteredTree,
     createCollection,
     createFolder,
     createRequest,

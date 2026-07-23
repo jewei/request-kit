@@ -72,3 +72,61 @@ describe('workspace store', () => {
     expect(store.tree).toEqual([]);
   });
 });
+
+describe('workspace filteredTree', () => {
+  const nested: WorkspaceNode = {
+    id: 'c1',
+    kind: 'collection',
+    name: 'API',
+    children: [
+      {
+        id: 'f1',
+        kind: 'folder',
+        name: 'Auth',
+        children: [
+          { id: 'r1', kind: 'request', name: 'Login' },
+          { id: 'r2', kind: 'request', name: 'Logout' },
+        ],
+      },
+      { id: 'r3', kind: 'request', name: 'Health' },
+    ],
+  };
+
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    vi.clearAllMocks();
+    vi.mocked(commands.loadWorkspace).mockResolvedValue(bootstrap([nested]));
+  });
+
+  it('empty query returns the full tree', async () => {
+    const store = useWorkspaceStore();
+    await store.load();
+    expect(store.filteredTree('')).toBe(store.tree);
+  });
+
+  it('keeps only the path to a matching request', async () => {
+    const store = useWorkspaceStore();
+    await store.load();
+    const result = store.filteredTree('login');
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe('c1');
+    const folder = result[0].children!;
+    expect(folder).toHaveLength(1); // "Health" excluded
+    expect(folder[0].id).toBe('f1');
+    expect(folder[0].children).toHaveLength(1); // only "Login"
+    expect(folder[0].children![0].id).toBe('r1');
+  });
+
+  it('a matching container keeps its whole subtree', async () => {
+    const store = useWorkspaceStore();
+    await store.load();
+    const result = store.filteredTree('auth');
+    expect(result[0].children![0].children).toHaveLength(2); // Login + Logout
+  });
+
+  it('no match returns an empty list', async () => {
+    const store = useWorkspaceStore();
+    await store.load();
+    expect(store.filteredTree('zzz')).toEqual([]);
+  });
+});
