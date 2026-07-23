@@ -7,11 +7,11 @@ import { defineStore } from 'pinia';
 import { computed, ref, toRaw } from 'vue';
 import { cancelRequest, releaseResponse, sendRequest, writeRequest } from '../ipc/commands';
 import { isAppError, type AppError } from '../ipc/errors';
-import type { KeyValueRow } from '../types/request';
+import type { HttpMethod, KeyValueRow } from '../types/request';
 import type { HttpResponseData } from '../types/response';
 import type { RequestFile } from '../types/workspace';
 import { prepareRequest, type RequestDraft } from '../lib/prepare/prepareRequest';
-import { emptyRequestUrl } from '../lib/url/requestUrl';
+import { emptyRequestUrl, parseUrlBar } from '../lib/url/requestUrl';
 import { draftToRequestFile, requestFileToDraft } from '../lib/workspace/requestFile';
 import { buildHistoryEntry, type HistoryResult } from '../lib/history/redact';
 import { useWorkspaceStore } from './workspace';
@@ -105,6 +105,32 @@ export const useTabsStore = defineStore('tabs', () => {
     tab.inFlightExecutionId = null;
     prepareErrors.value = [];
     prepareWarnings.value = [];
+  }
+
+  /**
+   * Replay a history entry that has no saved request (or whose request is gone)
+   * into a fresh scratch tab, best-effort from its template URL. Redacted query
+   * values remain `<redacted>` for the user to re-enter.
+   */
+  function openScratchFromHistory(method: HttpMethod, templateUrl: string): void {
+    const tab = activeTab.value;
+    if (!tab) return;
+    if (tab.response) {
+      void releaseResponse(tab.response.executionId).catch(() => {});
+    }
+    tab.requestId = null;
+    tab.name = 'Untitled';
+    tab.draft = {
+      method,
+      url: parseUrlBar(templateUrl, emptyRequestUrl()),
+      headers: [],
+      body: { mode: 'none' },
+      settings: { timeoutMs: null, followRedirects: null },
+    };
+    tab.dirty = false;
+    tab.response = null;
+    tab.responseError = null;
+    tab.inFlightExecutionId = null;
   }
 
   /**
@@ -255,6 +281,7 @@ export const useTabsStore = defineStore('tabs', () => {
     markDirty,
     save,
     openRequest,
+    openScratchFromHistory,
     onNodeDeleted,
     sendActiveTab,
     cancelActiveTab,

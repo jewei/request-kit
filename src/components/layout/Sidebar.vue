@@ -1,29 +1,41 @@
 <script setup lang="ts">
-/** Collections sidebar: renders the tree and drives create/open/rename/delete
- *  through the workspace + tabs stores. Menus/dialogs live here so the tree
- *  components stay presentational. */
+/** Collections + History sidebar. Drives create/open/rename/delete through the
+ *  workspace + tabs stores; hosts search, the history list, and the settings
+ *  entry point. Menus/dialogs live here so the tree components stay
+ *  presentational. */
 import { computed, ref } from 'vue';
 import { readRequest } from '../../ipc/commands';
+import { useHistoryStore } from '../../stores/history';
 import { useTabsStore } from '../../stores/tabs';
+import { useUiStore } from '../../stores/ui';
 import { useWorkspaceStore } from '../../stores/workspace';
+import type { HistoryEntry } from '../../types/history';
 import CollectionTree from '../sidebar/CollectionTree.vue';
+import HistoryList from '../sidebar/HistoryList.vue';
+import SidebarSearch from '../sidebar/SidebarSearch.vue';
 import ConfirmDialog from '../shared/ConfirmDialog.vue';
 import ContextMenu, { type MenuItem } from '../shared/ContextMenu.vue';
 
 const workspace = useWorkspaceStore();
 const tabs = useTabsStore();
+const history = useHistoryStore();
+const ui = useUiStore();
 
+const mode = ref<'collections' | 'history'>('collections');
+const query = ref('');
 const menu = ref<{ id: string; x: number; y: number } | null>(null);
 const renamingId = ref<string | null>(null);
 const confirm = ref<{
   title: string;
   message: string;
+  confirmLabel: string;
   onConfirm: () => void | Promise<void>;
 } | null>(null);
 const quarantineDismissed = ref(false);
 
 const activeRequestId = computed(() => tabs.activeTab?.requestId ?? null);
 const activeDirty = computed(() => tabs.activeTab?.dirty ?? false);
+const shownTree = computed(() => workspace.filteredTree(query.value));
 
 const menuItems = computed<MenuItem[]>(() => {
   if (!menu.value) return [];
@@ -60,8 +72,7 @@ async function newCollection(): Promise<void> {
 
 async function openNode(id: string): Promise<void> {
   try {
-    const file = await readRequest(id);
-    tabs.openRequest(file);
+    tabs.openRequest(await readRequest(id));
   } catch (error) {
     report(error);
   }
@@ -72,6 +83,7 @@ function requestOpen(id: string): void {
     confirm.value = {
       title: 'Discard unsaved changes?',
       message: 'The current request has unsaved edits that will be lost.',
+      confirmLabel: 'Discard',
       onConfirm: () => openNode(id),
     };
   } else {
@@ -121,6 +133,7 @@ function askDelete(id: string): void {
   confirm.value = {
     title: `Delete "${node.name}"?`,
     message: `This permanently deletes "${node.name}"${suffix}.`,
+    confirmLabel: 'Delete',
     onConfirm: async () => {
       await workspace.remove(id);
       tabs.onNodeDeleted(id);
@@ -140,6 +153,23 @@ async function onRenameCommit(payload: { id: string; name: string }): Promise<vo
   }
 }
 
+function replay(entry: HistoryEntry): void {
+  if (entry.requestId && workspace.nodeById(entry.requestId)) {
+    void openNode(entry.requestId);
+  } else {
+    tabs.openScratchFromHistory(entry.method, entry.templateUrl);
+  }
+}
+
+function askClearHistory(): void {
+  confirm.value = {
+    title: 'Clear history?',
+    message: 'This permanently removes all recorded requests.',
+    confirmLabel: 'Clear',
+    onConfirm: () => history.clear(),
+  };
+}
+
 async function runConfirm(): Promise<void> {
   const action = confirm.value?.onConfirm;
   confirm.value = null;
@@ -156,14 +186,37 @@ async function runConfirm(): Promise<void> {
 <template>
   <aside class="sidebar">
     <header class="sidebar-head">
-      <span class="title">Collections</span>
-      <button
-        class="new-btn"
-        title="New collection"
-        @click="newCollection"
-      >
-        +
-      </button>
+      <div class="mode-toggle">
+        <button
+          :class="{ active: mode === 'collections' }"
+          @click="mode = 'collections'"
+        >
+          Collections
+        </button>
+        <button
+          :class="{ active: mode === 'history' }"
+          @click="mode = 'history'"
+        >
+          History
+        </button>
+      </div>
+      <div class="head-actions">
+        <button
+          v-if="mode === 'collections'"
+          class="icon-btn"
+          title="New collection"
+          @click="newCollection"
+        >
+          +
+        </button>
+        <button
+          class="icon-btn"
+          title="Settings"
+          @click="ui.toggleSettings()"
+        >
+          ⚙
+        </button>
+      </div>
     </header>
 
     <div
@@ -177,18 +230,31 @@ async function runConfirm(): Promise<void> {
       </button>
     </div>
 
-    <div class="tree-scroll">
-      <CollectionTree
-        :nodes="workspace.tree"
-        :renaming-id="renamingId"
-        :active-request-id="activeRequestId"
-        :dirty="activeDirty"
-        @open="requestOpen"
-        @menu="(payload) => (menu = payload)"
-        @rename-commit="onRenameCommit"
-        @rename-cancel="renamingId = null"
+    <template v-if="mode === 'collections'">
+      <SidebarSearch
+        :query="query"
+        @update:query="query = $event"
       />
-    </div>
+      <div class="scroll">
+        <CollectionTree
+          :nodes="shownTree"
+          :renaming-id="renamingId"
+          :active-request-id="activeRequestId"
+          :dirty="activeDirty"
+          @open="requestOpen"
+          @menu="(payload) => (menu = payload)"
+          @rename-commit="onRenameCommit"
+          @rename-cancel="renamingId = null"
+        />
+      </div>
+    </template>
+
+    <HistoryList
+      v-else
+      :entries="history.entries"
+      @replay="replay"
+      @clear="askClearHistory"
+    />
 
     <ContextMenu
       v-if="menu"
@@ -203,7 +269,7 @@ async function runConfirm(): Promise<void> {
       v-if="confirm"
       :title="confirm.title"
       :message="confirm.message"
-      confirm-label="Delete"
+      :confirm-label="confirm.confirmLabel"
       danger
       @confirm="runConfirm"
       @cancel="confirm = null"
@@ -224,20 +290,34 @@ async function runConfirm(): Promise<void> {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
+  padding: 8px 10px;
   border-bottom: 1px solid var(--rk-border);
 }
-.title {
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--rk-muted);
+.mode-toggle {
+  display: flex;
+  gap: 2px;
 }
-.new-btn {
-  width: 22px;
-  height: 22px;
-  font-size: 16px;
+.mode-toggle button {
+  font-size: 12px;
+  padding: 4px 8px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--rk-muted);
+  cursor: pointer;
+}
+.mode-toggle button.active {
+  color: var(--rk-fg);
+  border-bottom-color: var(--rk-accent);
+}
+.head-actions {
+  display: flex;
+  gap: 4px;
+}
+.icon-btn {
+  width: 24px;
+  height: 24px;
+  font-size: 14px;
   line-height: 1;
   border: 1px solid var(--rk-border);
   border-radius: 4px;
@@ -262,7 +342,7 @@ async function runConfirm(): Promise<void> {
   cursor: pointer;
   font-size: 12px;
 }
-.tree-scroll {
+.scroll {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
