@@ -47,3 +47,25 @@ Fixture base: `http://localhost:4400` (`bun run fixtures`).
 - [ ] `mod+Enter` sends the active request; the Send button flips to Cancel while
       in flight
 - [ ] Copy body copies the displayed text to the clipboard
+
+## M2a — Storage and saved requests
+
+Exercises `~/.request-kit` persistence. No fixture server needed.
+
+- [ ] Sidebar **+** creates a collection; it appears and enters inline rename
+- [ ] Right-click a collection → **New request** → the request opens in the tab
+- [ ] Edit the request (method/URL/body), press `mod+S` → dirty dot clears
+- [ ] Right-click → **New folder**; create a request inside it (nesting works)
+- [ ] Quit and relaunch → the full tree, names, and saved request contents are
+      restored (create → save → quit → relaunch survives)
+- [ ] Right-click a request → **Rename** (inline) → name updates and persists
+- [ ] Right-click a request → **Duplicate** → a "… copy" appears; original intact
+- [ ] Right-click → **Delete** a request that is open → confirm → the tab becomes
+      an unsaved scratch tab (edits retained), node gone after relaunch
+- [ ] Delete a folder with children → confirm → whole subtree removed
+- [ ] On macOS: `~/.request-kit` is `0700`, `collection.json`/request files `0600`
+      (`ls -le`); files are human-readable JSON with a UUID `id`
+- [ ] Hand-drop a corrupt JSON file and a second file with a duplicate `id` into a
+      collection dir → relaunch → app still starts, both are quarantined
+      (`.corrupt-<ts>`), and the sidebar shows the "files could not be loaded"
+      notice; the duplicate winner is the lexicographically-first path
