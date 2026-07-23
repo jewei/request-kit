@@ -18,7 +18,13 @@ function onChange(event: Event): void {
     :data-method="modelValue"
     @change="onChange"
   >
-    <option v-for="method in METHODS" :key="method" :value="method">{{ method }}</option>
+    <option
+      v-for="method in METHODS"
+      :key="method"
+      :value="method"
+    >
+      {{ method }}
+    </option>
   </select>
 </template>
 

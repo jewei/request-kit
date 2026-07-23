@@ -8,7 +8,10 @@ const store = useTabsStore();
 </script>
 
 <template>
-  <div v-if="store.activeTab" class="top-bar">
+  <div
+    v-if="store.activeTab"
+    class="top-bar"
+  >
     <MethodSelect
       :model-value="store.activeTab.draft.method"
       @update:model-value="

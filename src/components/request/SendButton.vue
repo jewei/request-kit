@@ -13,7 +13,11 @@ function onClick(): void {
 </script>
 
 <template>
-  <button class="send-button" :data-inflight="store.isInFlight" @click="onClick">
+  <button
+    class="send-button"
+    :data-inflight="store.isInFlight"
+    @click="onClick"
+  >
     {{ store.isInFlight ? 'Cancel' : 'Send' }}
   </button>
 </template>

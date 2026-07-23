@@ -21,7 +21,10 @@ function setRedirects(event: Event): void {
 </script>
 
 <template>
-  <div v-if="store.activeTab" class="request-settings">
+  <div
+    v-if="store.activeTab"
+    class="request-settings"
+  >
     <label class="setting">
       <span>Timeout (ms)</span>
       <input
@@ -30,7 +33,7 @@ function setRedirects(event: Event): void {
         :placeholder="`inherit (${APP_DEFAULTS.timeoutMs})`"
         :value="store.activeTab.draft.settings.timeoutMs ?? ''"
         @input="setTimeoutMs"
-      />
+      >
     </label>
     <label class="setting">
       <span>Follow redirects</span>

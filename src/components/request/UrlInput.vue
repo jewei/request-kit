@@ -45,7 +45,7 @@ function onEnter(): void {
     @focus="focused = true"
     @blur="focused = false"
     @keydown.enter="onEnter"
-  />
+  >
 </template>
 
 <style scoped>

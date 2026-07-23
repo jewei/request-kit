@@ -85,7 +85,10 @@ watch(
 </script>
 
 <template>
-  <div ref="host" class="code-editor" />
+  <div
+    ref="host"
+    class="code-editor"
+  />
 </template>
 
 <style scoped>

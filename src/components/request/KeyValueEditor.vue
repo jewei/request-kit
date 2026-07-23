@@ -46,15 +46,23 @@ defineExpose({ rowCount: () => props.rows.length });
 </script>
 
 <template>
-  <div class="kv-editor" role="table">
-    <div v-for="row in rows" :key="row.id" class="kv-row" role="row">
+  <div
+    class="kv-editor"
+    role="table"
+  >
+    <div
+      v-for="row in rows"
+      :key="row.id"
+      class="kv-row"
+      role="row"
+    >
       <input
         class="kv-check"
         type="checkbox"
         :checked="row.enabled"
         :aria-label="`toggle ${row.key || 'row'}`"
         @change="onToggle(row, $event)"
-      />
+      >
       <input
         class="kv-input kv-key"
         type="text"
@@ -62,7 +70,7 @@ defineExpose({ rowCount: () => props.rows.length });
         :placeholder="keyPlaceholder ?? 'key'"
         :value="row.key"
         @input="onField(row, 'key', $event)"
-      />
+      >
       <input
         class="kv-input kv-value"
         type="text"
@@ -70,21 +78,34 @@ defineExpose({ rowCount: () => props.rows.length });
         :placeholder="valuePlaceholder ?? 'value'"
         :value="row.value"
         @input="onField(row, 'value', $event)"
-      />
+      >
       <input
         class="kv-input kv-desc"
         type="text"
         placeholder="description"
         :value="row.description ?? ''"
         @input="onField(row, 'description', $event)"
-      />
-      <button class="kv-delete" :aria-label="`delete ${row.key || 'row'}`" @click="emit('remove', row.id)">
+      >
+      <button
+        class="kv-delete"
+        :aria-label="`delete ${row.key || 'row'}`"
+        @click="emit('remove', row.id)"
+      >
         ×
       </button>
     </div>
 
-    <div class="kv-row kv-row-blank" role="row">
-      <input class="kv-check" type="checkbox" checked disabled aria-label="new row enabled" />
+    <div
+      class="kv-row kv-row-blank"
+      role="row"
+    >
+      <input
+        class="kv-check"
+        type="checkbox"
+        checked
+        disabled
+        aria-label="new row enabled"
+      >
       <input
         class="kv-input kv-key"
         type="text"
@@ -92,7 +113,7 @@ defineExpose({ rowCount: () => props.rows.length });
         :placeholder="keyPlaceholder ?? 'key'"
         value=""
         @input="onField(null, 'key', $event)"
-      />
+      >
       <input
         class="kv-input kv-value"
         type="text"
@@ -100,8 +121,14 @@ defineExpose({ rowCount: () => props.rows.length });
         :placeholder="valuePlaceholder ?? 'value'"
         value=""
         @input="onField(null, 'value', $event)"
-      />
-      <input class="kv-input kv-desc" type="text" placeholder="description" value="" disabled />
+      >
+      <input
+        class="kv-input kv-desc"
+        type="text"
+        placeholder="description"
+        value=""
+        disabled
+      >
       <span class="kv-delete-spacer" />
     </div>
   </div>

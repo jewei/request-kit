@@ -56,12 +56,25 @@ function onFormat(): void {
 </script>
 
 <template>
-  <div v-if="store.activeTab" class="body-editor">
+  <div
+    v-if="store.activeTab"
+    class="body-editor"
+  >
     <div class="body-toolbar">
-      <select class="mode-select" :value="store.activeTab.draft.body.mode" @change="setMode">
-        <option value="none">No body</option>
-        <option value="raw">Raw text</option>
-        <option value="json">JSON</option>
+      <select
+        class="mode-select"
+        :value="store.activeTab.draft.body.mode"
+        @change="setMode"
+      >
+        <option value="none">
+          No body
+        </option>
+        <option value="raw">
+          Raw text
+        </option>
+        <option value="json">
+          JSON
+        </option>
       </select>
       <input
         v-if="store.activeTab.draft.body.mode === 'raw'"
@@ -70,7 +83,7 @@ function onFormat(): void {
         placeholder="Content-Type (optional)"
         :value="store.activeTab.draft.body.contentType ?? ''"
         @input="setRawContentType"
-      />
+      >
       <button
         v-if="store.activeTab.draft.body.mode === 'json'"
         class="format-button"
@@ -80,9 +93,17 @@ function onFormat(): void {
       </button>
     </div>
 
-    <p v-if="formatError" class="format-error">{{ formatError }}</p>
+    <p
+      v-if="formatError"
+      class="format-error"
+    >
+      {{ formatError }}
+    </p>
 
-    <div v-if="store.activeTab.draft.body.mode !== 'none'" class="editor-host">
+    <div
+      v-if="store.activeTab.draft.body.mode !== 'none'"
+      class="editor-host"
+    >
       <CodeEditor
         :model-value="store.activeTab.draft.body.content"
         :language="store.activeTab.draft.body.mode === 'json' ? 'json' : 'text'"
@@ -90,7 +111,12 @@ function onFormat(): void {
         @update:model-value="setContent"
       />
     </div>
-    <p v-else class="no-body">This request has no body.</p>
+    <p
+      v-else
+      class="no-body"
+    >
+      This request has no body.
+    </p>
   </div>
 </template>
 
